@@ -52,7 +52,11 @@ final class LoginViewModel: ObservableObject {
                 password.trimmingCharacters(in: .whitespaces)
             )
         } catch {
-            errorMessage = error.localizedDescription
+            // Prefer the caller-supplied, user-friendly localised description from a
+            // `LocalizedError`; fall back to a generic message rather than forwarding
+            // raw SDK / system error strings (e.g. NSURLErrorDomain codes) to the UI.
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? "Something went wrong. Please try again."
         }
 
         isLoading = false

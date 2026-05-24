@@ -1,16 +1,35 @@
 import SwiftUI
+import SafariServices
 
 /// Login screen — collects credentials and hands them off to `LoginViewModel`.
 ///
 /// Design contract:
 /// - Logo / app name at the top
-/// - Username and password fields
+/// - Username field with email keyboard and `name@acmebank.com` placeholder
+/// - Password field with show/hide eye toggle
+/// - "Keep me signed in" checkbox (local state only, unchecked by default)
 /// - Sign In button disabled while fields are empty or a request is in flight
+/// - "Need help?" link that opens a Safari sheet with the support URL
 /// - Inline error banner when `viewModel.errorMessage` is non-nil
 /// - Spinner overlay while `viewModel.isLoading` is `true`
 struct LoginView: View {
 
     @StateObject var viewModel: LoginViewModel
+
+    // MARK: - Local UI state
+
+    /// Controls whether the password characters are revealed.
+    @State private var isPasswordVisible: Bool = false
+
+    /// Controls the "Keep me signed in" checkbox. Local state only;
+    /// Keychain persistence is deferred to the Okta auth story.
+    @State private var keepMeSignedIn: Bool = false
+
+    /// Controls presentation of the "Need help?" Safari sheet.
+    @State private var isHelpSheetPresented: Bool = false
+
+    /// Placeholder support URL — will be replaced with the real URL when available.
+    private let helpURL = URL(string: "https://www.acmebank.com/support")!
 
     var body: some View {
         ZStack {
@@ -37,7 +56,9 @@ struct LoginView: View {
 
                 // MARK: Fields
                 VStack(spacing: 16) {
-                    TextField("Username", text: $viewModel.username)
+                    // Username — email keyboard type + email-style placeholder (AC)
+                    TextField("name@acmebank.com", text: $viewModel.username)
+                        .keyboardType(.emailAddress)
                         .textContentType(.username)
                         .textInputAutocapitalization(.never)
                         .disableAutocorrection(true)
@@ -46,14 +67,47 @@ struct LoginView: View {
                         .cornerRadius(10)
                         .accessibilityIdentifier("usernameField")
 
-                    SecureField("Password", text: $viewModel.password)
-                        .textContentType(.password)
+                    // Password — show/hide toggle (AC)
+                    ZStack(alignment: .trailing) {
+                        Group {
+                            if isPasswordVisible {
+                                TextField("Password", text: $viewModel.password)
+                                    .textContentType(.password)
+                                    .textInputAutocapitalization(.never)
+                                    .disableAutocorrection(true)
+                            } else {
+                                SecureField("Password", text: $viewModel.password)
+                                    .textContentType(.password)
+                            }
+                        }
                         .padding()
+                        .padding(.trailing, 44) // room for the eye button
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(10)
                         .accessibilityIdentifier("passwordField")
+
+                        Button {
+                            isPasswordVisible.toggle()
+                        } label: {
+                            Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
+                                .foregroundColor(.secondary)
+                                .padding(.trailing, 12)
+                        }
+                        .accessibilityLabel(isPasswordVisible ? "Hide password" : "Show password")
+                        .accessibilityIdentifier("passwordVisibilityToggle")
+                    }
                 }
                 .padding(.horizontal, 24)
+
+                // MARK: Keep me signed in (AC — local state, Keychain deferred)
+                Toggle(isOn: $keepMeSignedIn) {
+                    Text("Keep me signed in")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                }
+                .toggleStyle(CheckboxToggleStyle())
+                .padding(.horizontal, 24)
+                .accessibilityIdentifier("keepMeSignedInToggle")
 
                 // MARK: Error banner
                 if let errorMessage = viewModel.errorMessage {
@@ -91,6 +145,21 @@ struct LoginView: View {
                 .padding(.horizontal, 24)
                 .accessibilityIdentifier("signInButton")
 
+                // MARK: Need help? link (AC)
+                Button {
+                    isHelpSheetPresented = true
+                } label: {
+                    Text("Need help?")
+                        .font(.footnote)
+                        .foregroundColor(.accentColor)
+                        .underline()
+                }
+                .accessibilityIdentifier("needHelpButton")
+                .sheet(isPresented: $isHelpSheetPresented) {
+                    SafariView(url: helpURL)
+                        .ignoresSafeArea()
+                }
+
                 Spacer()
             }
 
@@ -103,4 +172,36 @@ struct LoginView: View {
             }
         }
     }
+}
+
+// MARK: - Checkbox toggle style
+
+/// A toggle style that renders as a checkbox instead of the default iOS switch.
+private struct CheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: configuration.isOn ? "checkmark.square.fill" : "square")
+                    .foregroundColor(configuration.isOn ? .accentColor : .secondary)
+                    .imageScale(.large)
+                configuration.label
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - SafariView wrapper
+
+/// A `UIViewControllerRepresentable` wrapper around `SFSafariViewController`.
+private struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
