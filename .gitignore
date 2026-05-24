@@ -17,6 +17,14 @@ Pods/
 .swiftpm/
 .build/
 
+# XcodeGen output — generated from project.yml on every `xcodegen generate`.
+# Committing it risks (a) shipping empty Okta placeholder values into the
+# tracked plist, or (b) a developer pasting a real value here for a quick
+# local test and forgetting to revert. The build-time Run Script is the
+# only path that writes real Okta values, and it writes into the *built*
+# Info.plist, not this source-side generated file.
+AcmeBank/Generated-Info.plist
+
 # Okta config — secrets reach the build via OKTA_* env vars and a
 # Run Script that writes them into the built Info.plist. We never
 # commit a config file with real OR placeholder values. These entries
