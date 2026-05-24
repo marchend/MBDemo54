@@ -14,8 +14,6 @@ targets:
     sources: [AcmeBank]
     dependencies:
       - package: OktaMobileSDK
-        product: WebAuthenticationUI
-      - package: OktaMobileSDK
         product: AuthFoundation
     settings:
       base:
