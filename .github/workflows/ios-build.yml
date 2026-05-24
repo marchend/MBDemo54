@@ -50,6 +50,33 @@ jobs:
         # would fail with "no project found" on a project.yml-only repo.
         run: brew install xcodegen
 
+      - name: Provide build-time Okta placeholders
+        # Scripts/inject-okta-config.sh is registered as a preBuildScripts
+        # phase that runs on EVERY xcodebuild invocation (it has
+        # ``basedOnDependencyAnalysis: false`` in project.yml). It uses
+        # ``set -e`` plus ``${VAR:?...}`` expansions on the four OKTA_*
+        # env vars, so any unset variable aborts the build immediately
+        # with "OKTA_ISSUER not set" etc. That's the right contract on a
+        # developer machine — never silently ship an empty Okta config —
+        # but it means CI must provide the four variables before
+        # xcodebuild even reaches the compiler.
+        #
+        # The values written here are intentionally fake placeholder
+        # strings: ios-build.yml is a build-correctness gate (does the
+        # project compile? do unit tests pass?), not an integration test
+        # against a real Okta tenant. The unit-test suite doesn't perform
+        # any actual OIDC handshakes, so non-empty placeholders are
+        # sufficient to satisfy the script and let xcodebuild proceed.
+        # Real tenant values are injected on signed-release builds via
+        # repository secrets in a separate release workflow.
+        run: |
+          {
+            echo "OKTA_ISSUER=https://ci.example.invalid/oauth2/default"
+            echo "OKTA_CLIENT_ID=ci-placeholder-client-id"
+            echo "OKTA_REDIRECT_URI=com.acmebank.mobile:/callback"
+            echo "OKTA_SCOPES=openid profile email"
+          } >> "$GITHUB_ENV"
+
       - name: Cache SwiftPM packages
         uses: actions/cache@v4
         with:
