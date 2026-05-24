@@ -3,20 +3,55 @@ options:
   bundleIdPrefix: com.acmebank
   deploymentTarget:
     iOS: "17.0"
+packages:
+  OktaMobileSDK:
+    url: https://github.com/okta/okta-mobile-swift
+    from: "2.0.0"
 targets:
   AcmeBank:
     type: application
     platform: iOS
     sources: [AcmeBank]
+    dependencies:
+      - package: OktaMobileSDK
+        product: WebAuthenticationUI
+      - package: OktaMobileSDK
+        product: AuthFoundation
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.acmebank.mobile
         SWIFT_VERSION: "5.10"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_CFBundleDisplayName: AcmeBank
+    info:
+      path: AcmeBank/Generated-Info.plist
+      properties:
+        CFBundleDisplayName: AcmeBank
+        UILaunchScreen:
+          UIColorName: ""
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Okta tenant configuration. These are intentionally EMPTY in
+        # source; the real values are written into the built Info.plist
+        # at build time by Scripts/inject-okta-config.sh (a Run Script
+        # preBuildScripts phase) from OKTA_* environment variables.
+        # The keys MUST exist here so `plutil -replace` has something
+        # to overwrite. Never commit real values here.
+        OktaIssuer: ""
+        OktaClientID: ""
+        OktaRedirectURI: ""
+        OktaScopes: ""
+    preBuildScripts:
+      # MUST run before "Copy Bundle Resources" so the Info.plist write
+      # happens before the bundle is assembled. XcodeGen places
+      # preBuildScripts ahead of Copy Bundle Resources by construction.
+      - script: |
+          "$SRCROOT/Scripts/inject-okta-config.sh"
+        name: Inject Okta config from environment
+        inputFiles:
+          - $(SRCROOT)/Scripts/inject-okta-config.sh
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        basedOnDependencyAnalysis: false
   AcmeBankTests:
     type: bundle.unit-test
     platform: iOS

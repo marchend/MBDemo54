@@ -9,6 +9,13 @@ if ! command -v xcodegen >/dev/null 2>&1; then
   brew install xcodegen
 fi
 
+# Ensure build-phase shell scripts are executable. Some checkouts on
+# case-insensitive filesystems or after certain merges lose the exec
+# bit; do this defensively so the Run Script phase always works.
+if [ -d Scripts ]; then
+  chmod +x Scripts/*.sh 2>/dev/null || true
+fi
+
 echo "Generating AcmeBank.xcodeproj from project.yml…"
 xcodegen generate
 
