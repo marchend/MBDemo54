@@ -1,17 +1,13 @@
 import SwiftUI
 
-/// Bootstrap placeholder screen.
-/// Replace with `RootView` (auth-state switching) in the AppCoordinator story.
+/// Root content view for AcmeBank.
+///
+/// Presents `LoginView` as the initial screen.
+/// Replace this with `RootView` (auth-state switching via `AppCoordinator`)
+/// once the Okta integration story is implemented.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Text("AcmeBank")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .accessibilityIdentifier("appNameLabel")
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        LoginView(viewModel: LoginViewModel())
     }
 }
 
