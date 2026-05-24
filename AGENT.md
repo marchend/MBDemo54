@@ -28,6 +28,16 @@ git clone <repo> && cd AcmeBank
 ```
 Manual fallback: `brew install xcodegen && xcodegen generate && open AcmeBank.xcodeproj`
 
+## Okta build configuration
+Okta tenant settings (`OktaIssuer`, `OktaClientID`, `OktaRedirectURI`, `OktaScopes`) are
+**injected at build time** into the built `Info.plist` by an Xcode Run Script phase
+(`Scripts/inject-okta-config.sh`) that reads the four `OKTA_*` environment variables
+from the calling process. The app reads them at runtime via `Bundle.main.infoDictionary`.
+**Do not** commit `Okta.plist`, any `*.xcconfig`, or `.env*` containing Okta values —
+the build machine's env vars are the single source of truth. See `README.md` for how to
+set the env vars so Xcode sees them (`launchctl setenv` for GUI Xcode, or `~/.zshrc`
++ `xed .` for shell-launched Xcode).
+
 ## Run Tests
 - Xcode: ⌘U
 - CLI: `xcodebuild test -scheme AcmeBank -destination 'platform=iOS Simulator,name=iPhone 16'`
@@ -53,6 +63,7 @@ AcmeBank/               ← iOS source root (XcodeGen glob picks up all .swift h
   Resources/            ← Localizable.strings, Okta.plist.example (deferred)
 AcmeBankTests/          ← XCTest unit tests (one smoke test implemented)
 AcmeBankUITests/        ← XCUITest end-to-end (deferred)
+Scripts/                ← Build-phase shell scripts (e.g. inject-okta-config.sh)
 project.yml             ← XcodeGen spec (source of truth for .xcodeproj)
 setup.sh                ← one-shot setup script
 ```

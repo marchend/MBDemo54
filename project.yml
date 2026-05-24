@@ -3,20 +3,62 @@ options:
   bundleIdPrefix: com.acmebank
   deploymentTarget:
     iOS: "17.0"
+packages:
+  OktaMobileSDK:
+    url: https://github.com/okta/okta-mobile-swift
+    from: "2.0.0"
 targets:
   AcmeBank:
     type: application
     platform: iOS
     sources: [AcmeBank]
+    dependencies:
+      - package: OktaMobileSDK
+        product: AuthFoundation
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.acmebank.mobile
         SWIFT_VERSION: "5.10"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_CFBundleDisplayName: AcmeBank
+    info:
+      path: AcmeBank/Generated-Info.plist
+      properties:
+        CFBundleDisplayName: AcmeBank
+        UILaunchScreen:
+          UIColorName: ""
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Okta tenant configuration. These are intentionally EMPTY in
+        # source; the real values are written into the built Info.plist
+        # at build time by Scripts/inject-okta-config.sh (a Run Script
+        # postBuildScripts phase) from OKTA_* environment variables.
+        # The keys MUST exist here so `plutil -replace` has something
+        # to overwrite. Never commit real values here.
+        OktaIssuer: ""
+        OktaClientID: ""
+        OktaRedirectURI: ""
+        OktaScopes: ""
+    postBuildScripts:
+      # Runs AFTER Xcode's "Process Info.plist" phase has placed the
+      # built Info.plist into $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH).
+      # We mutate that file in place with `plutil -replace` — we do
+      # NOT declare it as an outputFile because Xcode's own Process
+      # Info.plist phase already declares it; declaring it here too
+      # causes "Multiple commands produce" build errors.
+      # The script's real input is the process environment
+      # (OKTA_* vars), which Xcode's dependency engine can't see,
+      # so basedOnDependencyAnalysis: false forces it to run every
+      # build.
+      # We invoke the script via `sh` rather than executing the path
+      # directly so the build does not depend on the file's exec bit
+      # being preserved through git (a fresh GitHub Actions checkout
+      # does NOT preserve the +x mode).
+      - script: |
+          sh "$SRCROOT/Scripts/inject-okta-config.sh"
+        name: Inject Okta config from environment
+        inputFiles:
+          - $(SRCROOT)/Scripts/inject-okta-config.sh
+        basedOnDependencyAnalysis: false
   AcmeBankTests:
     type: bundle.unit-test
     platform: iOS
