@@ -49,8 +49,12 @@ targets:
       # (OKTA_* vars), which Xcode's dependency engine can't see,
       # so basedOnDependencyAnalysis: false forces it to run every
       # build.
+      # We invoke the script via `sh` rather than executing the path
+      # directly so the build does not depend on the file's exec bit
+      # being preserved through git (a fresh GitHub Actions checkout
+      # does NOT preserve the +x mode).
       - script: |
-          "$SRCROOT/Scripts/inject-okta-config.sh"
+          sh "$SRCROOT/Scripts/inject-okta-config.sh"
         name: Inject Okta config from environment
         inputFiles:
           - $(SRCROOT)/Scripts/inject-okta-config.sh

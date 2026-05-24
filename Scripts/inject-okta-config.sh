@@ -13,12 +13,17 @@
 # machine, then hit Run forever after" works with no step between
 # `git pull` and `xcodebuild`.
 #
-# The ${VAR:?...} expansion fails the build immediately (because of
-# `set -e`) with a clear message if any of the four required env vars
-# is missing, rather than silently shipping an app with empty Okta
-# values.
+# Behavior when OKTA_* env vars are unset:
+# On CI and on fresh checkouts that have not yet configured Okta
+# credentials, we do NOT want to fail the build — the four Info.plist
+# keys are already declared as empty strings in project.yml, and no
+# Swift code consumes them yet. We emit an Xcode `warning:` line
+# (which shows up in the build log as a yellow warning, not an error)
+# and exit 0 so the build proceeds with empty Okta values. Real dev
+# machines that DO export the env vars hit the plutil -replace path
+# below and get real values baked into the built Info.plist.
 #
-# Required environment variables:
+# Required environment variables (for a fully-configured build):
 #   OKTA_ISSUER         e.g. https://example.okta.com/oauth2/default
 #   OKTA_CLIENT_ID      Okta application client ID
 #   OKTA_REDIRECT_URI   e.g. com.acmebank.mobile:/callback
@@ -31,7 +36,12 @@ set -e
 
 PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
 
-plutil -replace OktaIssuer      -string "${OKTA_ISSUER:?OKTA_ISSUER not set}"           "$PLIST"
-plutil -replace OktaClientID    -string "${OKTA_CLIENT_ID:?OKTA_CLIENT_ID not set}"     "$PLIST"
-plutil -replace OktaRedirectURI -string "${OKTA_REDIRECT_URI:?OKTA_REDIRECT_URI not set}" "$PLIST"
-plutil -replace OktaScopes      -string "${OKTA_SCOPES:?OKTA_SCOPES not set}"           "$PLIST"
+if [ -z "${OKTA_ISSUER:-}" ] || [ -z "${OKTA_CLIENT_ID:-}" ] || [ -z "${OKTA_REDIRECT_URI:-}" ] || [ -z "${OKTA_SCOPES:-}" ]; then
+    echo "warning: One or more OKTA_* environment variables are unset; leaving Okta Info.plist keys empty. Set OKTA_ISSUER, OKTA_CLIENT_ID, OKTA_REDIRECT_URI, OKTA_SCOPES to inject real values."
+    exit 0
+fi
+
+plutil -replace OktaIssuer      -string "${OKTA_ISSUER}"       "$PLIST"
+plutil -replace OktaClientID    -string "${OKTA_CLIENT_ID}"    "$PLIST"
+plutil -replace OktaRedirectURI -string "${OKTA_REDIRECT_URI}" "$PLIST"
+plutil -replace OktaScopes      -string "${OKTA_SCOPES}"       "$PLIST"
